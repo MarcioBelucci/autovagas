@@ -7,15 +7,29 @@ def buscar_vagas_remotar():
     vagas_coletadas = []
     
     with sync_playwright() as p:
-        # headless=True roda o navegador invisível em segundo plano
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+        # Lançamos o navegador no modo headless (ou com headless=False para ver o navegador abrindo)
+        # Adicionamos argumentos para evitar detecção de bot
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-dev-shm-usage"
+            ]
+        )
+        
+        # Criamos um contexto com um User-Agent real de navegador Chrome
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            viewport={"width": 1280, "height": 800}
+        )
+        page = context.new_page()
         
         try:
             print("🔍 Acessando Remotar para buscar vagas...")
             # Aumentamos o timeout e usamos 'domcontentloaded' para garantir o carregamento
             page.goto("https://remotar.com.br", timeout=60000, wait_until="domcontentloaded")
-            page.wait_for_timeout(4000) # Aguarda a renderização do React/JS
+            page.wait_for_timeout(3000) # Aguarda a renderização do React/JS
             
             # Tentamos múltiplos seletores possíveis que o Remotar costuma usar em seus cards
             seletores_cards = ["article", ".job-card", "div[class*='job']", "a[href*='/vaga/']"]

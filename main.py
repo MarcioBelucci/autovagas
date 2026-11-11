@@ -3,6 +3,7 @@ from database import inicializar_banco, salvar_vaga
 from scraper import buscar_vagas_remotar
 from filter import avaliar_vaga
 from telegram import enviar_alerta_telegram
+from filter import REGRAS_FILTRO
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 
 def executar_automacao():
@@ -20,7 +21,12 @@ def executar_automacao():
     for vaga in vagas_brutas:
             # 1. Aplica o filtro inteligente e pontuação PRIMEIRO
             resultado_filtro = avaliar_vaga(vaga)
-            
+
+            print(f"\n🔍 VAGA LIDA: '{vaga.get('titulo')}'")
+            print(f"📊 Score obtido: {resultado_filtro['score']} (Mínimo exigido: {REGRAS_FILTRO.get('score_corte', 10)})")
+            print(f"🎯 Termos encontrados: {resultado_filtro['matched']}")
+            print(f"✅ Aprovada? {resultado_filtro['aprovada']}")
+    
             # Se a vaga foi reprovada pelo filtro, nem precisamos salvar no banco (ou salvamos como rejeitada, dependendo do critério)
             if not resultado_filtro["aprovada"]:
                 continue

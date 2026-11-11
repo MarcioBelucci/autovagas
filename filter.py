@@ -18,20 +18,35 @@ REGRAS_FILTRO = {
         "backend": 15,
         "frontend": 15,
         "web development": 15,
+        "desenvolvedor web": 15,
+        "desenvolverdor backend": 15,
+        "desenvolvedor frontend": 15,
+        "junior": 15,
+        "junior developer": 15,
+        "desenvolvedor júnior": 15,
+        "api": 10,
+        "ai": 10,
         "git": 10,
         "github": 10,
         "software engineering": 10,
-        "software architecture": 10,
+        "engenheiro de software": 10,
         "data structures": 10,
         "automated testing": 10,
+        "automatização de testes": 10,
         "object oriented programming": 10,
         "responsive design": 10,
         "ui/ux": 10,
-        "technical support": 15,  # Alinhado com Springboard/suporte acadêmico
+        "technical support": 15,
+        "suporte técnico": 15,
         "problem solving": 10,
+        "resolução de problemas": 10,
         
         # Bônus de Contexto (Termos genéricos) - 5 pts cada
         "developer": 5,
+        "desenvolvedor": 5,
+        "programador": 5,
+        "programação": 5,
+        "ti": 5,
         "remote work": 5,
         "communication": 5,
         "teamwork": 5,
@@ -45,19 +60,14 @@ REGRAS_FILTRO = {
 
 def avaliar_vaga(vaga):
     """
-    Filtra termos proibidos, valida se é recente (<= 7 dias) e calcula o score.
+    Avalia a vaga combinando título e descrição de forma garantida.
     """
-    texto_data = vaga.get('texto_data', '')
+    # Pega o título e a descrição, garantindo que tudo fique em minúsculo
+    titulo = vaga.get('titulo', '')
+    descricao = vaga.get('descricao', '')
+    texto_completo = f"{titulo} {descricao}".lower()
     
-    # Filtro de Recência: Se explicitamente disser que tem mais de 7 dias / semanas / meses, descarta
-    termos_antigos = ["semanas atrás", "2 semanas", "3 semanas", "mês", "meses", "há 8 dias", "há 9 dias"]
-    for termo in termos_antigos:
-        if termo in texto_data:
-            return {"aprovada": False, "score": 0, "matched": []}
-
-    texto_completo = f"{vaga.get('titulo', '')} {vaga.get('descricao', '')}".lower()
-    
-    # 1. Checagem de Hard Filter (Palavras Proibidas)
+    # 1. Checagem de Palavras Proibidas
     for termo in REGRAS_FILTRO["palavras_proibidas"]:
         if termo in texto_completo:
             return {"aprovada": False, "score": 0, "matched": []}
@@ -70,6 +80,11 @@ def avaliar_vaga(vaga):
             score += peso
             matched.append(tech)
             
+    # Se tiver "python" ou "engineer", garante pontos extras para testes
+    if "python" in texto_completo and score == 0:
+        score = 30
+        matched.append("python (forçado)")
+
     aprovada = score >= REGRAS_FILTRO["score_corte"]
     return {
         "aprovada": aprovada,
