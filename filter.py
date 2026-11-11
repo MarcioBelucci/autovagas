@@ -1,23 +1,51 @@
 REGRAS_FILTRO = {
+    # Vagas com estes termos são descartadas imediatamente
     "palavras_proibidas": [
-        "senior", "sr", "tech lead", "principal", "presencial", "c++", "php"
+        "senior", "sr", "tech lead", "", "presencial", "c++", "php"
     ],
+    
+    # Pesos calculados por relevancia técnica
     "pesos_tecnologias": {
+        # Core Tech (Altíssima prioridade) - 25 a 30 pts
         "python": 30,
         "javascript": 25,
-        "typescript": 25,
-        "react": 20,
-        "sql": 15,
-        "docker": 15,
-        "fastapi": 20,
-        "django": 20
+        "sql": 25,
+        "flask": 25,
+        "mysql": 20,
+        "c#": 15,
+        
+        # Conceitos Técnicos e Áreas - 10 a 15 pts
+        "backend": 15,
+        "frontend": 15,
+        "web development": 15,
+        "git": 10,
+        "github": 10,
+        "software engineering": 10,
+        "software architecture": 10,
+        "data structures": 10,
+        "automated testing": 10,
+        "object oriented programming": 10,
+        "responsive design": 10,
+        "ui/ux": 10,
+        "technical support": 15,  # Alinhado com Springboard/suporte acadêmico
+        "problem solving": 10,
+        
+        # Bônus de Contexto (Termos genéricos) - 5 pts cada
+        "developer": 5,
+        "remote work": 5,
+        "communication": 5,
+        "teamwork": 5,
+        "english": 5,
+        "spanish": 5
     },
-    "score_corte": 40  # Nota mínima para notificar
+    
+    # Nota mínima total para enviar notificação no Telegram
+    "score_corte": 25
 }
 
 def avaliar_vaga(vaga):
     """
-    Filtra termos proibidos e calcula o score de compatibilidade com base na stack.
+    Filtra termos proibidos e calcula o score de compatibilidade.
     """
     texto_completo = f"{vaga.get('titulo', '')} {vaga.get('descricao', '')}".lower()
     
@@ -26,7 +54,7 @@ def avaliar_vaga(vaga):
         if termo in texto_completo:
             return {"aprovada": False, "score": 0, "matched": []}
             
-    # 2. Cálculo de Score
+    # 2. Cálculo do Score acumulado
     score = 0
     matched = []
     for tech, peso in REGRAS_FILTRO["pesos_tecnologias"].items():
