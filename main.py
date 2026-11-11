@@ -1,53 +1,45 @@
-import os
-from database import inicializar_banco, salvar_vaga
+from database import atualizar_status, inicializar_banco, salvar_vaga, status_vaga
+from filter import REGRAS_FILTRO, avaliar_vaga
 from scraper import buscar_vagas_remotar
-from filter import avaliar_vaga
 from telegram import enviar_alerta_telegram
-from filter import REGRAS_FILTRO
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+
 
 def executar_automacao():
     print("🚀 Iniciando varredura diária de vagas...")
-    
-    # 1. Garante que o banco existe
     inicializar_banco()
-    
-    # 2. Executa a coleta nas fontes configuradas
     vagas_brutas = buscar_vagas_remotar()
     print(f"📊 Total de vagas brutas encontradas: {len(vagas_brutas)}")
-    
     novas_notificadas = 0
 
     for vaga in vagas_brutas:
-            # 1. Aplica o filtro inteligente e pontuação PRIMEIRO
-            resultado_filtro = avaliar_vaga(vaga)
+        resultado = avaliar_vaga(vaga)
+        print(f"\n🔍 VAGA LIDA: '{vaga.get('titulo')}'")
+        print(f"📊 Score: {resultado['score']} (mínimo: {REGRAS_FILTRO['score_corte']})")
+        print(f"🎯 Termos: {resultado['matched']}")
+        if not resultado["aprovada"]:
+            print(f"⏭️ Reprovada: {resultado['motivo'] or 'score insuficiente'}")
+            continue
 
-            print(f"\n🔍 VAGA LIDA: '{vaga.get('titulo')}'")
-            print(f"📊 Score obtido: {resultado_filtro['score']} (Mínimo exigido: {REGRAS_FILTRO.get('score_corte', 10)})")
-            print(f"🎯 Termos encontrados: {resultado_filtro['matched']}")
-            print(f"✅ Aprovada? {resultado_filtro['aprovada']}")
-    
-            # Se a vaga foi reprovada pelo filtro, nem precisamos salvar no banco (ou salvamos como rejeitada, dependendo do critério)
-            if not resultado_filtro["aprovada"]:
-                continue
-                
-            # Se foi aprovada, preenchemos os dados de score
-            vaga['score'] = resultado_filtro["score"]
-            vaga['technologies_matched'] = resultado_filtro["matched"]
-            
-            # 2. Valida se a vaga é inédita no banco
-            inserida_agora = salvar_vaga(vaga)
-            
-            if not inserida_agora:
-                continue # Se já existe no banco, pula para a próxima para não mandar duplicado no Telegram
-                
-            # 3. Dispara o alerta no Telegram se passou em tudo
-            sucesso = enviar_alerta_telegram(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, vaga)
-            if sucesso:
-                print(f"✅ Alerta enviado: {vaga['titulo']} ({vaga['empresa']}) - Score: {vaga['score']}")
-                novas_notificadas += 1
-                
-            print(f"✨ Varredura concluída! {novas_notificadas} novas vagas compatíveis notificadas.")
+        vaga["score"] = resultado["score"]
+        vaga["technologies_matched"] = resultado["matched"]
+        inserida = salvar_vaga(vaga)
+        status_atual = "pendente" if inserida else status_vaga(vaga["link"])
+        if status_atual == "enviada":
+            print("⏭️ Já notificada anteriormente.")
+            continue
+
+        sucesso, erro = enviar_alerta_telegram(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, vaga)
+        if sucesso:
+            atualizar_status(vaga["link"], "enviada")
+            novas_notificadas += 1
+            print(f"✅ Alerta enviado: {vaga['titulo']} ({vaga['empresa']})")
+        else:
+            atualizar_status(vaga["link"], "falha", erro)
+            print(f"❌ Alerta não enviado; será tentado novamente: {erro}")
+
+    print(f"✨ Varredura concluída! {novas_notificadas} novas vagas notificadas.")
+
 
 if __name__ == "__main__":
     executar_automacao()

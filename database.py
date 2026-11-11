@@ -1,51 +1,55 @@
 import sqlite3
-from datetime import datetime
 
 DB_NAME = "vagas.db"
 
+
+def _conexao():
+    return sqlite3.connect(DB_NAME)
+
+
 def inicializar_banco():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS vagas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            titulo TEXT NOT NULL,
-            empresa TEXT,
-            local TEXT,
-            link TEXT UNIQUE NOT NULL,
-            plataforma TEXT,
-            descricao TEXT,
-            score INTEGER,
-            data_coleta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            status TEXT DEFAULT 'novo'
-        );
-    """)
-    conn.commit()
-    conn.close()
+    with _conexao() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS vagas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                titulo TEXT NOT NULL, empresa TEXT, local TEXT,
+                link TEXT UNIQUE NOT NULL, plataforma TEXT, descricao TEXT,
+                score INTEGER, data_coleta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status TEXT DEFAULT 'pendente', erro_envio TEXT
+            );
+        """)
+        colunas = {linha[1] for linha in conn.execute("PRAGMA table_info(vagas)")}
+        if "erro_envio" not in colunas:
+            conn.execute("ALTER TABLE vagas ADD COLUMN erro_envio TEXT")
+
 
 def salvar_vaga(vaga):
-    """
-    Salva a vaga no banco. Se o link já existir (UNIQUE), retorna False.
-    """
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
+    """Registra uma vaga pendente. Retorna False se o link já era conhecido."""
     try:
-        cursor.execute("""
-            INSERT INTO vagas (titulo, empresa, local, link, plataforma, descricao, score)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            vaga.get("titulo"),
-            vaga.get("empresa"),
-            vaga.get("local"),
-            vaga.get("link"),
-            vaga.get("plataforma"),
-            vaga.get("descricao"),
-            vaga.get("score", 0)
-        ))
-        conn.commit()
+        with _conexao() as conn:
+            conn.execute("""
+                INSERT INTO vagas
+                    (titulo, empresa, local, link, plataforma, descricao, score, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'pendente')
+            """, (
+                vaga.get("titulo"), vaga.get("empresa"), vaga.get("local"),
+                vaga.get("link"), vaga.get("plataforma"), vaga.get("descricao"),
+                vaga.get("score", 0),
+            ))
         return True
     except sqlite3.IntegrityError:
-        # Vaga já cadastrada anteriormente
         return False
-    finally:
-        conn.close()
+
+
+def status_vaga(link):
+    with _conexao() as conn:
+        linha = conn.execute("SELECT status FROM vagas WHERE link = ?", (link,)).fetchone()
+    return linha[0] if linha else None
+
+
+def atualizar_status(link, status, erro=None):
+    with _conexao() as conn:
+        conn.execute(
+            "UPDATE vagas SET status = ?, erro_envio = ? WHERE link = ?",
+            (status, erro, link),
+        )
