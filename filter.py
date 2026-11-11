@@ -1,7 +1,7 @@
 REGRAS_FILTRO = {
     # Vagas com estes termos são descartadas imediatamente
     "palavras_proibidas": [
-        "senior", "sr", "tech lead", "", "presencial", "c++", "php"
+        "senior", "sênior", "sr", "tech lead", "presencial"
     ],
     
     # Pesos calculados por relevancia técnica
