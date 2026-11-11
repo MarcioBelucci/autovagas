@@ -34,14 +34,16 @@ def buscar_vagas_remotar():
             
             for card in cards[:20]: # Analisa até os 20 primeiros elementos
                 try:
-                    # Busca específica por títulos em tags de cabeçalho ou links internos
                     titulo_el = card.query_selector("h2, h3, h4, a span, strong, .title, [class*='title']")
                     empresa_el = card.query_selector(".company, .empresa, span[class*='company']")
                     link_el = card.query_selector("a")
                     
+                    # Tenta capturar o texto de data/tempo (ex: "há 2 dias", "1 semana atrás")
+                    data_el = card.query_selector("time, .date, span[class*='date'], span[class*='time']")
+                    texto_data = data_el.inner_text().lower() if data_el else card.inner_text().lower()
+                    
                     titulo = titulo_el.inner_text().strip() if titulo_el else ""
                     if not titulo or len(titulo) < 3:
-                        # Fallback: se o card inteiro tiver texto limpo
                         titulo = card.inner_text().split("\n")[0].strip()
                         
                     empresa = empresa_el.inner_text().strip() if empresa_el else "Confidencial"
@@ -51,15 +53,15 @@ def buscar_vagas_remotar():
                         if not link.startswith("http"):
                             link = f"https://remotar.com.br{link}"
                         
-                        # Evita títulos vazios ou lixo
-                        if titulo and len(titulo) > 3 and "vaga" not in titulo.lower() or len(titulo) > 10:
+                        if titulo and len(titulo) > 3:
                             vagas_coletadas.append({
                                 "titulo": titulo,
                                 "empresa": empresa,
                                 "local": "Remoto",
                                 "link": link,
                                 "plataforma": "Remotar",
-                                "descricao": f"{titulo} {empresa}" # Usa título e empresa para dar mais termos ao filtro
+                                "descricao": f"{titulo} {empresa}",
+                                "texto_data": texto_data  # Guardamos para filtrar depois
                             })
                 except Exception:
                     continue

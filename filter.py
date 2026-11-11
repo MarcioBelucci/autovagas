@@ -40,13 +40,21 @@ REGRAS_FILTRO = {
     },
     
     # Nota mínima total para enviar notificação no Telegram
-    "score_corte": 25
+    "score_corte": 10
 }
 
 def avaliar_vaga(vaga):
     """
-    Filtra termos proibidos e calcula o score de compatibilidade.
+    Filtra termos proibidos, valida se é recente (<= 7 dias) e calcula o score.
     """
+    texto_data = vaga.get('texto_data', '')
+    
+    # Filtro de Recência: Se explicitamente disser que tem mais de 7 dias / semanas / meses, descarta
+    termos_antigos = ["semanas atrás", "2 semanas", "3 semanas", "mês", "meses", "há 8 dias", "há 9 dias"]
+    for termo in termos_antigos:
+        if termo in texto_data:
+            return {"aprovada": False, "score": 0, "matched": []}
+
     texto_completo = f"{vaga.get('titulo', '')} {vaga.get('descricao', '')}".lower()
     
     # 1. Checagem de Hard Filter (Palavras Proibidas)
